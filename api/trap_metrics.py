@@ -9,8 +9,11 @@ import datetime
 
 class TrapMetrics():
 
-    def __init__(self, inference_results: list):
+    def __init__(self, inference_results: list, acquisition_date: datetime.datetime, field_name: str = None, trap_id: int = None):
         self.inference_results = inference_results
+        self.acquisition_date = acquisition_date
+        self.field_name = field_name
+        self.trap_id = trap_id
     
     def get_insect_quantity(self):
         """
@@ -28,17 +31,37 @@ class TrapMetrics():
             average_area += w*h
         return average_area/self.get_insect_quantity()
     
-    def get_insect_growth_rate(self, field_name: str, acquisition_time: datetime.datetime):
+    def get_insect_growth_rate(self):
         """
         Get the growth rate of the insects in the trap in insects/hour.
         If the db is empty, returns 0.
         
-        field_name: The name of the field where the trap is located.
+        Parameters
+        ----------
+        field_name: str 
+            The name of the field where the trap is located.
+        acquisition_time: datetime.datetime
+            The time when the image was taken.
         """
-        if(len(InsectCount.objects.filter(field_name=field_name)) == 0):
+        #return 0 if there arent records from that trap
+        if(len(InsectCount.objects.filter(field_name=self.field_name, trap_id = self.trap_id)) == 0):
             return 0
-        last_insect_count = InsectCount.objects.filter(field_name=field_name).order_by('acquisition_date').reverse()[0]
+        #get latest acquisition
+        last_insect_count = InsectCount.objects.filter(field_name=self.field_name, trap_id = self.trap_id).order_by('acquisition_date').reverse()[0]
+        #calculate growth rate
         insect_dif = self.get_insect_quantity() - last_insect_count.insect_quantity
-        time_dif = acquisition_time - last_insect_count.acquisition_date.replace(tzinfo=None)
+        time_dif = self.acquisition_date - last_insect_count.acquisition_date.replace(tzinfo=None)
+        if(time_dif.seconds <= 0):
+            return 0
         time_dif_hours = time_dif.seconds/3600
         return insect_dif/time_dif_hours
+    
+    def yield_metrics(self):
+        """
+        Returns a dictionary with the number of insects, the average insect area and the insect growth rate.
+        """
+        return {
+            'insect_quantity': self.get_insect_quantity(),
+            'average_insect_area': self.get_insect_average_area(),
+            'insect_growth_rate': self.get_insect_growth_rate()
+        }
