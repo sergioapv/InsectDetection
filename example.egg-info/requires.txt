@@ -1,0 +1,8 @@
+ultralytics
+fastapi
+requests
+numpy
+django
+uvicorn[standard]
+datetime
+typing
